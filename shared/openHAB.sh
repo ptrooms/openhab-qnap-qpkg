@@ -158,83 +158,6 @@ function checkPorts {
 }
 
 case "$1" in
-  mstop)
-    setupEnvironment
-#    if [ -f ${QPKG_PIDFILE} ]; then
-#        kill -9 $(cat ${QPKG_PIDFILE}) > ${QPKG_STDOUT}_kill 2> ${QPKG_STDERR}_kill
-#        rm ${QPKG_PIDFILE}
-    ( cd ${QPKG_DISTRIBUTION} && JAVA_HOME=${JAVA_HOME} PATH=$PATH:${JAVA_HOME}/bin OPENHAB_HTTP_PORT=${QPKG_HTTP_PORT} OPENHAB_HTTPS_PORT=${QPKG_HTTPS_PORT} ${QPKG_STOP}  )
-#    else
-#        log_tool -t 1 -a  "$QPKG_NAME already stopped."
-#    fi
-
-    # TODO: WORKAROUND: Waiting one minute until the service is properly turned off
-    echo  "stopped."
-    ;;
-
-  restart)
-    echo "stop script=" $QPKG_STOP ", start=" $QPKG_START
-    if ${QPKG_STOP} ; then
-		echo "openHAB.sh:  STOP executed"
-		if ${QPKG_START}
-		then
-			echo "openHAB.sh:  START executed"
-			exit 0
-		else
-			echo "openHAB.sh:  START executed; exitcode 1"
-			exit 1
-		fi
-	else
-		echo "openHAB.sh:  STOP executed; exitcode 1"
-		exit 1
-	fi
-    ;;
-
-  mstart)
- 
-    setupEnvironment
-    checkPorts
-
-#    # Is there a pidfile?
-#    if [ -f ${QPKG_PIDFILE} ]; then
-#        if [ -f /proc/$(cat ${QPKG_PIDFILE})/status ] ; then
-#            log_tool -t 1 -a "$QPKG_NAME is already running as <"$(cat ${QPKG_PIDFILE})"> with status: "$(cat /proc/$(cat ${QPKG_PIDFILE})/status)"."
-#            exit 1
-#        else
-#            rm ${QPKG_PIDFILE}
-#        fi
-#    fi
-
-    # Detecting PID of current instance while looking at instance.properties
-    if [ -f ${QPKG_DISTRIBUTION}/runtime/karaf/instances/instance.properties ]; then
-        QPKG_PID=$(sed -n -e '/item.0.pid/ s/.*\= *//p' ${QPKG_DISTRIBUTION}/runtime/karaf/instances/instance.properties)
-        # Checking whether PID is still running
-        if [ x${QPKG_PID} != "x" ]; then
-            if [ -f /proc/${QPKG_PID}/status ] ; then
-                log_tool -t 1 -a $QPKG_NAME" is still running as <"${QPKG_PID}"> with status: "$(cat /proc/${QPKG_PID}/status)"."
-                exit 1
-            fi
-        fi
-    fi
-
-    # Get timezone defined in system
-    export TZ=`/sbin/getcfg System "Time Zone" -f /etc/config/uLinux.conf`
-
-    # Change to distribution directory and run openHAB2
-    ( cd ${QPKG_DISTRIBUTION} && JAVA_HOME=${JAVA_HOME} PATH=$PATH:${JAVA_HOME}/bin OPENHAB_HTTP_PORT=${OPENHAB_HTTP_PORT} OPENHAB_HTTPS_PORT=${OPENHAB_HTTPS_PORT} ${QPKG_START}  ) &
-#    echo $! > ${QPKG_PIDFILE}
-
-#    # Renice new pid - TODO: Needs more testing
-#    sleep 3
-#    sync
-#    QPKG_PID=$(sed -n -e '/item.0.pid/ s/.*\= *//p' ${QPKG_DISTRIBUTION}/runtime/karaf/instances/instance.properties)
-#    renice -10 ${QPKG_PID}
-#    log_tool -t 1 -a "Reniced karaf process "${QPKG_PID}" to "$(awk '{print $19}' /proc/${QPKG_PID}/stat)
-
-    # TODO: WORKAROUND: Waiting one and a half minute until the service is properly turned on
-    echo "Started manually"
-    ;;
-
   
   start)
     ENABLED=$(/sbin/getcfg ${QPKG_NAME} Enable -u -d FALSE -f ${CONF})
@@ -289,6 +212,51 @@ case "$1" in
     sleep 90
     ;;
 
+  mstart)
+ # 	Immediately start and do not include wait/sleep
+    setupEnvironment
+    checkPorts
+
+#    # Is there a pidfile?
+#    if [ -f ${QPKG_PIDFILE} ]; then
+#        if [ -f /proc/$(cat ${QPKG_PIDFILE})/status ] ; then
+#            log_tool -t 1 -a "$QPKG_NAME is already running as <"$(cat ${QPKG_PIDFILE})"> with status: "$(cat /proc/$(cat ${QPKG_PIDFILE})/status)"."
+#            exit 1
+#        else
+#            rm ${QPKG_PIDFILE}
+#        fi
+#    fi
+
+    # Detecting PID of current instance while looking at instance.properties
+    if [ -f ${QPKG_DISTRIBUTION}/runtime/karaf/instances/instance.properties ]; then
+        QPKG_PID=$(sed -n -e '/item.0.pid/ s/.*\= *//p' ${QPKG_DISTRIBUTION}/runtime/karaf/instances/instance.properties)
+        # Checking whether PID is still running
+        if [ x${QPKG_PID} != "x" ]; then
+            if [ -f /proc/${QPKG_PID}/status ] ; then
+                log_tool -t 1 -a $QPKG_NAME" is still running as <"${QPKG_PID}"> with status: "$(cat /proc/${QPKG_PID}/status)"."
+                exit 1
+            fi
+        fi
+    fi
+
+    # Get timezone defined in system
+    export TZ=`/sbin/getcfg System "Time Zone" -f /etc/config/uLinux.conf`
+
+    # Change to distribution directory and run openHAB2
+    ( cd ${QPKG_DISTRIBUTION} && JAVA_HOME=${JAVA_HOME} PATH=$PATH:${JAVA_HOME}/bin OPENHAB_HTTP_PORT=${OPENHAB_HTTP_PORT} OPENHAB_HTTPS_PORT=${OPENHAB_HTTPS_PORT} ${QPKG_START}  ) &
+#    echo $! > ${QPKG_PIDFILE}
+
+#    # Renice new pid - TODO: Needs more testing
+#    sleep 3
+#    sync
+#    QPKG_PID=$(sed -n -e '/item.0.pid/ s/.*\= *//p' ${QPKG_DISTRIBUTION}/runtime/karaf/instances/instance.properties)
+#    renice -10 ${QPKG_PID}
+#    log_tool -t 1 -a "Reniced karaf process "${QPKG_PID}" to "$(awk '{print $19}' /proc/${QPKG_PID}/stat)
+
+    # TODO: WORKAROUND: Waiting one and a half minute until the service is properly turned on
+    echo "Started manually, check if openhab is really active"
+    ;;
+
   stop)
     setupEnvironment
 #    if [ -f ${QPKG_PIDFILE} ]; then
@@ -307,13 +275,45 @@ case "$1" in
     ;;
 
 
+  mstop)
+# 	Immediately stop and do not wait/sleep for   
+    setupEnvironment
+#    if [ -f ${QPKG_PIDFILE} ]; then
+#        kill -9 $(cat ${QPKG_PIDFILE}) > ${QPKG_STDOUT}_kill 2> ${QPKG_STDERR}_kill
+#        rm ${QPKG_PIDFILE}
+    ( cd ${QPKG_DISTRIBUTION} && JAVA_HOME=${JAVA_HOME} PATH=$PATH:${JAVA_HOME}/bin OPENHAB_HTTP_PORT=${QPKG_HTTP_PORT} OPENHAB_HTTPS_PORT=${QPKG_HTTPS_PORT} ${QPKG_STOP}  )
+#    else
+#        log_tool -t 1 -a  "$QPKG_NAME already stopped."
+#    fi
+
+    # TODO: WORKAROUND: Waiting one minute until the service is properly turned off
+    echo  "stopped, check if openhab is really stopped."
+    ;;
+
+  restart)
+    echo "stop script=" $QPKG_STOP ", start=" $QPKG_START
+    if ${QPKG_STOP} ; then
+		echo "openHAB.sh:  STOP executed"
+		if ${QPKG_START}
+		then
+			echo "openHAB.sh:  START executed"
+			exit 0
+		else
+			echo "openHAB.sh:  START executed; exitcode 1"
+			exit 1
+		fi
+	else
+		echo "openHAB.sh:  STOP executed; exitcode 1"
+		exit 1
+	fi
+    ;;
+
   ports)
-    # added by pocs on 13jun18 for test
+    # added by pocs on 13jun18 for test ,show used http(s) ports
     setupEnvironment
     lsof -Pi :${OPENHAB_HTTP_PORT} -sTCP:LISTEN -t 
     lsof -Pi :${OPENHAB_HTTPS_PORT} -sTCP:LISTEN -t
     ;;
-
 
   status)
     echo "executing:"$QPKG_STATUS
@@ -399,7 +399,7 @@ case "$1" in
     downloadJavaX64
     ;;
   *)
-    echo "Usage: $0 {start|stop|restart|status|console|backup|snapshot-update|snapshot-download|downloadJava}"
+    echo "Usage: $0 {start|mstart|stop|mstop|restart|ports|status|console|backup|snapshot-update|snapshot-download|downloadJava}"
     exit 1
 esac
 
