@@ -43,3 +43,4 @@ If you want to keep configuration files, copy them to a save place outside of th
 ## Known issues
 * (1) Wrong start/stop behaviour: https://github.com/openhab/openhab-distro/issues/258
 * (2) Version 2.2.0 has problems with update from previous versions. 
+* (3) Running SMART test services (as is executed on the physical disk) causes (recoverable) RAID5 processing failures which as consequence disrupts sequence, timing and timed openHAB events. Best only activate SMART when needed.
