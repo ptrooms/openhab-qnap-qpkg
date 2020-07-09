@@ -18,12 +18,19 @@ QPKG_START=${QPKG_DISTRIBUTION}/runtime/bin/start
 QPKG_STOP=${QPKG_DISTRIBUTION}/runtime/bin/stop
 QPKG_STATUS=${QPKG_DISTRIBUTION}/runtime/bin/status
 QPKG_CONSOLE=${QPKG_DISTRIBUTION}/start.sh
+
 QPKG_SNAPSHOT_FLAVOUR=offline
 QPKG_SNAPSHOT_LOCATION="https://ci.openhab.org/job/openHAB-Distribution/lastSuccessfulBuild/artifact/distributions/openhab/target/openhab"
+QPKG_SNAPSHOT_EXTENTION=tar.gz
 QPKG_SNAPSHOT_VERSION=2.5.7
+
 QPKG_RELEASE_LOCATION="https://openhab.jfrog.io/openhab/libs-milestone-local/org/openhab/distro/openhab"
+QPKG_RELEASE_EXTENTION=tar.gz
 QPKG_RELEASE=2.4.0.RC1
 
+# QPKG_RELEASE_LOCATION="https://bintray.com/openhab/mvn/download_file?file_path=org/openhab/distro/openhab"
+# QPKG_RELEASE_EXTENTION=zip
+# QPKG_RELEASE=2.4.0
 
 function downloadJavaCommon {
     echo "Please visit http://www.oracle.com/technetwork/java/javase/terms/license/index.html"
@@ -45,6 +52,7 @@ function downloadJavaCommon {
     if [ -f ${QPKG_ROOT}/jdk.tar.gz ]; then
         rm ${QPKG_ROOT}/jdk.tar.gz
     fi
+
     wget --show-progress \
          --no-check-certificate \
          --no-cookies \
@@ -84,55 +92,72 @@ function downloadJavaX64 {
 
 function downloadAndExtractSnapshot {
     # Download snapshot
-    if [ -f ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz ]; then
-        rm ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz
+    if [ -f ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.${QPKG_SNAPSHOT_EXTENTION} ]; then
+        rm ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.${QPKG_SNAPSHOT_EXTENTION}
     fi
 	# down: https://openhab.ci.cloudbees.com /job/openHAB-Distribution/lastSuccessfulBuild/artifact/distributions/openhab/target/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz
 	# read: https://github.com/openhab/openhab-docs/issues/825 and change reference to https://ci.openhab.org/
     wget --show-progress \
         --no-check-certificate \
-        -O ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz \
-		${QPKG_SNAPSHOT_LOCATION}-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz
+        -O ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.${QPKG_SNAPSHOT_EXTENTION} \
+		${QPKG_SNAPSHOT_LOCATION}-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.${QPKG_SNAPSHOT_EXTENTION}
 
     # Extract runtime for snapshot and clean up
     if [ -d ${QPKG_TMP} ]; then
         rm -rf ${QPKG_TMP}
     fi
     mkdir -p ${QPKG_TMP}
-    tar -xvzf ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz --directory=${QPKG_TMP}
-	echo "Snapshot ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz extracted to ${QPKG_TMP}"
+
+	# unzip or extract archive
+	if [ "$QPKG_SNAPSHOT_EXTENTION" = "zip" ]; then
+       	unzip ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.${QPKG_SNAPSHOT_EXTENTION}} -d /share/MD0_DATA/.qpkg/openHAB/tmp
+	else
+        tar -xvzf ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.${QPKG_SNAPSHOT_EXTENTION} --directory=${QPKG_TMP}
+    fi
+
+	echo "Snapshot: ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz extracted to ${QPKG_TMP}"
 }
 
 function downloadAndExtractRelease {
     # Download release
-    if [ -f ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz ]; then
-        rm ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz
+    if [ -f ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.${QPKG_RELEASE_EXTENTION} ]; then
+        rm ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.${QPKG_RELEASE_EXTENTION}
     fi
 	# down: https://openhab.ci.cloudbees.com /job/openHAB-Distribution/lastSuccessfulBuild/artifact/distributions/openhab/target/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz
 	# read: https://github.com/openhab/openhab-docs/issues/825 and change reference to https://ci.openhab.org/
-	echo "${QPKG_RELEASE_LOCATION}/${QPKG_RELEASE}/openhab-${QPKG_RELEASE}.tar.gz"
+	echo "wget ${QPKG_RELEASE_LOCATION}/${QPKG_RELEASE}/openhab-${QPKG_RELEASE}.${QPKG_RELEASE_EXTENTION}"
 	wget --show-progress \
         --no-check-certificate \
 		--secure-protocol=TLSv1_2 \
-        -O ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.tar.gz \
-		${QPKG_RELEASE_LOCATION}/${QPKG_RELEASE}/openhab-${QPKG_RELEASE}.tar.gz
+        -O ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.${QPKG_RELEASE_EXTENTION} \
+		${QPKG_RELEASE_LOCATION}/${QPKG_RELEASE}/openhab-${QPKG_RELEASE}.${QPKG_RELEASE_EXTENTION}
 
     # Extract runtime for snapshot and clean up
     if [ -d ${QPKG_TMP} ]; then
         rm -rf ${QPKG_TMP}
     fi
     mkdir -p ${QPKG_TMP}
-    tar -xvzf ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.tar.gz --directory=${QPKG_TMP}
-	echo "Release ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.tar.gz extracted to ${QPKG_TMP}"
+
+	# unzip or extract archive
+	if [ "$QPKG_RELEASE_EXTENTION" = "zip" ]; then
+       	unzip ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.${QPKG_RELEASE_EXTENTION} -d /share/MD0_DATA/.qpkg/openHAB/tmp
+	else
+	    tar -xvzf ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.${QPKG_RELEASE_EXTENTION} --directory=${QPKG_TMP}
+    fi
+
+	echo "Release: ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.${QPKG_RELEASE_EXTENTION} extracted to ${QPKG_TMP}"
 }
+
+# wget --show-progress --no-check-certificate --secure-protocol=TLSv1_2  https://bintray.com/openhab/mvn/download_file?file_path=org%2Fopenhab%2Fdistro%2Fopenhab%2F2.4.0%2Fopenhab-2.4.0.zip
+
 
 function CheckSnapshotRelease {
 	echo "The >>download<<AndExtractSnapshot/Release function will use:"
-	echo "Version: ${QPKG_SNAPSHOT_LOCATION}-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz"
-	echo "Release: ${QPKG_RELEASE_LOCATION}/${QPKG_RELEASE}/openhab-${QPKG_RELEASE}.tar.gz "
-	echo "to Version file: ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz "
-	echo "or Release file: ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-SNAPSHOT.tar.gz "
-	echo "and unpacked via tar -xvzf into (cleared) directory: ${QPKG_TMP} "
+	echo "Version loc: ${QPKG_SNAPSHOT_LOCATION}-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.${QPKG_RELEASE_EXTENTION}"
+	echo "  to Version file: ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.${QPKG_RELEASE_EXTENTION} "
+	echo "Release loc: ${QPKG_RELEASE_LOCATION}/${QPKG_RELEASE}/openhab-${QPKG_RELEASE}.${QPKG_RELEASE_EXTENTION} "
+	echo "  to Release file: ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.${QPKG_RELEASE_EXTENTION} "
+	echo "and these are unpacked via tar -xvzf or unzip into (cleared) directory: ${QPKG_TMP} "
 	echo ""
 	echo "The >>upgrade<< function will actual change/replace data."
 	echo " * move karaf/etc settings (if any) to ${QPKG_ROOT}/openHAB/tmp/userdata/etc "
