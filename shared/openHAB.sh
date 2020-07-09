@@ -1,9 +1,10 @@
 #!/bin/bash
-
 CONF=/etc/config/qpkg.conf
+CONF2=/etc/config/smb.conf
 QPKG_HTTP_PORT=8090
 QPKG_HTTPS_PORT=8444
 QPKG_NAME="openHAB"
+OPENHAB_SHARE=`/sbin/getcfg $QPKG_NAME path -f ${CONF2}`
 QPKG_ROOT=`/sbin/getcfg $QPKG_NAME Install_Path -f ${CONF}`
 # QPKG_ROOT = /sbin/getcfg openHAB Install_Path -f /etc/config/qpkg.conf := /share/MD0_DATA/.qpkg/openHAB
 QPKG_JAVA=${QPKG_ROOT}/java
@@ -18,7 +19,11 @@ QPKG_STOP=${QPKG_DISTRIBUTION}/runtime/bin/stop
 QPKG_STATUS=${QPKG_DISTRIBUTION}/runtime/bin/status
 QPKG_CONSOLE=${QPKG_DISTRIBUTION}/start.sh
 QPKG_SNAPSHOT_FLAVOUR=offline
+QPKG_SNAPSHOT_LOCATION="https://ci.openhab.org/job/openHAB-Distribution/lastSuccessfulBuild/artifact/distributions/openhab/target/openhab"
 QPKG_SNAPSHOT_VERSION=2.5.7
+QPKG_RELEASE_LOCATION="https://openhab.jfrog.io/openhab/libs-milestone-local/org/openhab/distro/openhab"
+QPKG_RELEASE=2.4.0.RC1
+
 
 function downloadJavaCommon {
     echo "Please visit http://www.oracle.com/technetwork/java/javase/terms/license/index.html"
@@ -87,36 +92,65 @@ function downloadAndExtractSnapshot {
     wget --show-progress \
         --no-check-certificate \
         -O ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz \
-		https://ci.openhab.org/job/openHAB-Distribution/lastSuccessfulBuild/artifact/distributions/openhab/target/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz
+		${QPKG_SNAPSHOT_LOCATION}-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz
+
     # Extract runtime for snapshot and clean up
     if [ -d ${QPKG_TMP} ]; then
         rm -rf ${QPKG_TMP}
     fi
     mkdir -p ${QPKG_TMP}
     tar -xvzf ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz --directory=${QPKG_TMP}
-
+	echo "Snapshot ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz extracted to ${QPKG_TMP}"
 }
 
-function CheckSnapshot {
-	echo "The downloadAndExtractSnapshot function will use the following:"
-	echo "Version: ${QPKG_SNAPSHOT_VERSION} (as hard coded) for at root directory ${QPKG_ROOT} "
-	echo "Distribution location: ${QPKG_DISTRIBUTION} "
-	echo "data from (fixed): https://ci.openhab.org/job/openHAB-Distribution/lastSuccessfulBuild/artifact/distributions/openhab/target/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz "
-	echo "to file: ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz "
-	echo "is unpacked via tar -xvzf into: directory ${QPKG_TMP} "
+function downloadAndExtractRelease {
+    # Download release
+    if [ -f ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz ]; then
+        rm ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz
+    fi
+	# down: https://openhab.ci.cloudbees.com /job/openHAB-Distribution/lastSuccessfulBuild/artifact/distributions/openhab/target/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz
+	# read: https://github.com/openhab/openhab-docs/issues/825 and change reference to https://ci.openhab.org/
+	echo "${QPKG_RELEASE_LOCATION}/${QPKG_RELEASE}/openhab-${QPKG_RELEASE}.tar.gz"
+	wget --show-progress \
+        --no-check-certificate \
+		--secure-protocol=TLSv1_2 \
+        -O ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.tar.gz \
+		${QPKG_RELEASE_LOCATION}/${QPKG_RELEASE}/openhab-${QPKG_RELEASE}.tar.gz
+
+    # Extract runtime for snapshot and clean up
+    if [ -d ${QPKG_TMP} ]; then
+        rm -rf ${QPKG_TMP}
+    fi
+    mkdir -p ${QPKG_TMP}
+    tar -xvzf ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.tar.gz --directory=${QPKG_TMP}
+	echo "Release ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-RELEASE.tar.gz extracted to ${QPKG_TMP}"
+}
+
+function CheckSnapshotRelease {
+	echo "The >>download<<AndExtractSnapshot/Release function will use:"
+	echo "Version: ${QPKG_SNAPSHOT_LOCATION}-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz"
+	echo "Release: ${QPKG_RELEASE_LOCATION}/${QPKG_RELEASE}/openhab-${QPKG_RELEASE}.tar.gz "
+	echo "to Version file: ${QPKG_ROOT}/openhab-${QPKG_SNAPSHOT_VERSION}-SNAPSHOT.tar.gz "
+	echo "or Release file: ${QPKG_ROOT}/openhab-${QPKG_RELEASE}-SNAPSHOT.tar.gz "
+	echo "and unpacked via tar -xvzf into (cleared) directory: ${QPKG_TMP} "
 	echo ""
-	echo "The updateSnapshot will downloadAndExtractSnapshot and upgrade/replace data in place"
+	echo "The >>upgrade<< function will actual change/replace data."
 	echo " * move karaf/etc settings (if any) to ${QPKG_ROOT}/openHAB/tmp/userdata/etc "
 	echo " * cleanup (if any) Karaf deployments in the distribtion"
 	echo " * upgrade ${QPKG_ROOT}/openhab/distribution/userdata/tmp from SNAPshot"
 	echo " * update ${QPKG_ROOT}/openhab/distribution/userdata/etc from SNAPshot"
 	echo " * upgrade ${QPKG_ROOT}/openhab/distribution/runtime from SNAPshot"
 	echo ""
-	echo "Note: on this QNAP, the /etc/config/qpkg.conf is actually on /mnt/HDA_ROOT/.config/qpkg.conf"
-	echo "wehich might require manual chage to reflect version. Ensure that openHAB is not active"
+	echo "The >>save-current<< function will save existing environment into:"
+	echo "${QPKG_ROOT}-old and  ${OPENHAB_SHARE}-old "
+	echo ""
+	echo "Note1: The runtime-distribution uses symboliclinks via share ${OPENHAB_SHARE} (for @conf, @userdata, @addons)"
+	echo "Note2: on this QNAP, the /etc/config/qpkg.conf is actually on /mnt/HDA_ROOT/.config/qpkg.conf"
+	echo "Note3: the downloadable openhab versions area on ${OPENHAB_JFROG}"
+	echo "which might require manual change to reflect version. Ensure that openHAB is not active"
 }
 
-
+	
 function setupEnvironment {
     ## JAVA SETUP
     # Is there our own JAVA installation?
@@ -173,7 +207,7 @@ function setupEnvironment {
 function checkPorts {
     # Are the ports already used?
     if lsof -Pi :${OPENHAB_HTTP_PORT} -sTCP:LISTEN -t > /dev/null && lsof -Pi :${OPENHAB_HTTPS_PORT} -sTCP:LISTEN -t > /dev/null; then
-        log_tool -t 1 -a "Port ${OPENHAB_HTTP_PORT} or ${OPENHAB_HTTPS_PORT} already in use."
+        log_tool -t 1 -a "Port ${OPENHAB_HTTP_PORT} or ${OPENHAB_HTTPS_PORT} are in use."
         exit 1
     fi
 }
@@ -194,8 +228,10 @@ case "$1" in
     ;;
 
   check)
-     CheckSnapshot
+    CheckSnapshotRelease
+	echo "this is version 2 of openhab script (release support)"
 	;;
+
   restart)
     echo "stop script=" $QPKG_STOP ", start=" $QPKG_START
     if ${QPKG_STOP} ; then
@@ -309,6 +345,7 @@ case "$1" in
 #    log_tool -t 1 -a "Reniced karaf process "${QPKG_PID}" to "$(awk '{print $19}' /proc/${QPKG_PID}/stat)
 
     # TODO: WORKAROUND: Waiting one and a half minute until the service is properly turned on
+	log_tool -t 1 -a "${QPKG_NAME} started."
     echo "Waiting 90 secs until the openHAB service is properly turned on"
     sleep 90
     ;;
@@ -319,6 +356,7 @@ case "$1" in
 #        kill -9 $(cat ${QPKG_PIDFILE}) > ${QPKG_STDOUT}_kill 2> ${QPKG_STDERR}_kill
 #        rm ${QPKG_PIDFILE}
 	echo "Stop exec:" $QPKG_STOP
+	log_tool -t 1 -a "${QPKG_NAME} stopped."
     # ( cd ${QPKG_DISTRIBUTION} && JAVA_HOME=${JAVA_HOME} PATH=$PATH:${JAVA_HOME}/bin OPENHAB_HTTP_PORT=${QPKG_HTTP_PORT} OPENHAB_HTTPS_PORT=${QPKG_HTTPS_PORT} ${QPKG_STOP} > ${QPKG_STDOUT}_stop 2> ${QPKG_STDERR}_stop )
     ( cd ${QPKG_DISTRIBUTION} && JAVA_HOME=${JAVA_HOME} PATH=$PATH:${JAVA_HOME}/bin OPENHAB_HTTP_PORT=${QPKG_HTTP_PORT} OPENHAB_HTTPS_PORT=${QPKG_HTTPS_PORT} ${QPKG_STOP} )
 #    else
@@ -374,14 +412,37 @@ case "$1" in
     #    .
     ;;
 
-  snapshot-download)
+  save)
+	# copy /share/MD0_DATA/.qpkg/openHAB & share/MD0_DATA/.qpkg/openHAB to ...-old
+    if [ -d ${QPKG_ROOT}-old ]; then
+		echo "Existing, ${QPKG_ROOT}-old renamed to ${QPKG_ROOT}-old-$(date +%Y%m%d-%H%M%S)"
+		mv  ${QPKG_ROOT}-old ${QPKG_ROOT}-old-$(date +%Y%m%d-%H%M%S)
+    fi
+	echo "Saving ${QPKG_ROOT}-old to ${QPKG_ROOT}-old"
+	cp -R ${QPKG_ROOT}  ${QPKG_ROOT}-old
+
+    if [ -d ${OPENHAB_SHARE}-old ]; then
+		echo "Existing, ${OPENHAB_SHARE}-old renamed to ${OPENHAB_SHARE}-old-$(date +%Y%m%d-%H%M%S)"
+		mv  ${OPENHAB_SHARE}-old ${OPENHAB_SHARE}-old-$(date +%Y%m%d-%H%M%S)
+    fi
+	echo "Saving ${OPENHAB_SHARE}-old to ${OPENHAB_SHARE}-old"
+	cp -R ${OPENHAB_SHARE}  ${OPENHAB_SHARE}-old
+
+	;;
+
+  download-snapshot)
     # download and extract snapshot
     downloadAndExtractSnapshot
     ;;
 
-  snapshot-update)
+  download-release)
     # download and extract snapshot
-    downloadAndExtractSnapshot
+    downloadAndExtractRelease
+    ;;
+
+  upgrade)
+    # download and extract snapshot
+    # ---- downloadAndExtractSnapshot
 
     ## Migration from the old folder layout to the new:
     ## -> https://github.com/openhab/openhab-distro/pull/318
@@ -451,7 +512,8 @@ case "$1" in
     downloadJavaX64
     ;;
   *)
-    echo "Usage: $0 {start|stop|restart|status|console|backup|check|snapshot-update|snapshot-download|downloadJava}"
+    echo "Usage: $0 {start|stop|restart|status|console|backup"
+	echo "or for update-code {downloadJava|check|save|download-snapshot|download-release|upgrade}"
     exit 1
 esac
 
