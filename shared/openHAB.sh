@@ -24,13 +24,13 @@ QPKG_SNAPSHOT_LOCATION="https://ci.openhab.org/job/openHAB-Distribution/lastSucc
 QPKG_SNAPSHOT_EXTENTION=tar.gz
 QPKG_SNAPSHOT_VERSION=2.5.7
 
-QPKG_RELEASE_LOCATION="https://openhab.jfrog.io/openhab/libs-milestone-local/org/openhab/distro/openhab"
-QPKG_RELEASE_EXTENTION=tar.gz
-QPKG_RELEASE=2.4.0.RC1
+# QPKG_RELEASE_LOCATION="https://openhab.jfrog.io/openhab/libs-milestone-local/org/openhab/distro/openhab"
+# QPKG_RELEASE_EXTENTION=tar.gz
+# QPKG_RELEASE=2.4.0.RC1
 
-# QPKG_RELEASE_LOCATION="https://bintray.com/openhab/mvn/download_file?file_path=org/openhab/distro/openhab"
-# QPKG_RELEASE_EXTENTION=zip
-# QPKG_RELEASE=2.4.0
+QPKG_RELEASE_LOCATION="https://bintray.com/openhab/mvn/download_file?file_path=org/openhab/distro/openhab"
+QPKG_RELEASE_EXTENTION=zip
+QPKG_RELEASE=2.4.0
 
 function downloadJavaCommon {
     echo "Please visit http://www.oracle.com/technetwork/java/javase/terms/license/index.html"
@@ -172,6 +172,7 @@ function CheckSnapshotRelease {
 	echo "Note1: The runtime-distribution uses symboliclinks via share ${OPENHAB_SHARE} (for @conf, @userdata, @addons)"
 	echo "Note2: on this QNAP, the /etc/config/qpkg.conf is actually on /mnt/HDA_ROOT/.config/qpkg.conf"
 	echo "Note3: the downloadable openhab versions area on ${OPENHAB_JFROG}"
+	echo "Note4: any backup taken, are stored in ${QPKG_ROOT}/backups/ "
 	echo "which might require manual change to reflect version. Ensure that openHAB is not active"
 }
 
